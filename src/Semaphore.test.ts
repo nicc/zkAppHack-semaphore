@@ -1,5 +1,5 @@
 import { Semaphore } from './Semaphore';
-import { Mina, PrivateKey, PublicKey, AccountUpdate, Bool } from 'o1js';
+import { Mina, PrivateKey, PublicKey, AccountUpdate, Bool, Field } from 'o1js';
 
 let proofsEnabled = false;
 
@@ -57,6 +57,48 @@ describe('Semaphore.js', () => {
   
       const updatedClaimed = zkApp.claimed.get();
       expect(updatedClaimed).toEqual(Bool(true));
+    });
+
+    it('allows account owner to register valid claimants', async () => {
+      await localDeploy();
+
+      const originalClaimantsRoot = zkApp.claimantsRoot.get();
+      const newClaimantsRoot = Field(22);
+  
+      // update transaction
+      const txn = await Mina.transaction(zkAppAddress, () => {
+        zkApp.setClaimantsRoot(newClaimantsRoot);
+      });
+      
+      await txn.sign([zkAppPrivateKey]).send();
+  
+      const updatedClaimantsRoot = zkApp.claimantsRoot.get();
+      
+      expect(updatedClaimantsRoot).toEqual(newClaimantsRoot);
+      expect(updatedClaimantsRoot).not.toEqual(originalClaimantsRoot);
+    });
+
+    it('does not allow anyone other than account owner to register valid claimants', async () => {
+      await localDeploy();
+
+      const newClaimantsRoot = Field(22);
+  
+      // update transaction
+      const txn = await Mina.transaction(senderAccount, () => {
+        zkApp.setClaimantsRoot(newClaimantsRoot);
+      });
+      
+      await txn.prove();
+
+      // annoying workaround for expect().toThrow not working. Didn't want to get stuck here
+      let errorMsg = "";
+      try {
+        await txn.sign([senderKey]).send(); 
+      } catch(e: unknown) {
+        if (e instanceof Error) errorMsg = e.message
+      }
+        
+      expect(errorMsg).toMatch("Check signature: Invalid signature on account_update");
     });
 
   });
