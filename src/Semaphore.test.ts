@@ -39,25 +39,25 @@ describe('Semaphore.js', () => {
       await txn.sign([deployerKey, zkAppPrivateKey]).send();
     }
 
-    it('deploys and inits the smart contract', async () => {
-      await localDeploy();
-      const num = zkApp.claimed.get();
-      expect(num).toEqual(Bool(false));
-    });
+    // it('deploys and inits the smart contract', async () => {
+    //   await localDeploy();
+    //   const num = zkApp.claimed.get();
+    //   expect(num).toEqual(Bool(false));
+    // });
 
-    it('is claimable', async () => {
-      await localDeploy();
+    // it('is claimable', async () => {
+    //   await localDeploy();
   
-      // update transaction
-      const txn = await Mina.transaction(senderAccount, () => {
-        zkApp.claim();
-      });
-      await txn.prove();
-      await txn.sign([senderKey]).send();
+    //   // update transaction
+    //   const txn = await Mina.transaction(senderAccount, () => {
+    //     zkApp.claim();
+    //   });
+    //   await txn.prove();
+    //   await txn.sign([senderKey]).send();
   
-      const updatedClaimed = zkApp.claimed.get();
-      expect(updatedClaimed).toEqual(Bool(true));
-    });
+    //   const updatedClaimed = zkApp.claimed.get();
+    //   expect(updatedClaimed).toEqual(Bool(true));
+    // });
 
     it('allows account owner to register valid claimants', async () => {
       await localDeploy();

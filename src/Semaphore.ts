@@ -2,17 +2,14 @@ import {
     SmartContract, 
     state, 
     State, 
-    method, 
-    Bool,
+    method,
     Field,
-    Permissions
+    Permissions,
   } from 'o1js';
 
-import { checkCredentials } from './Stub.js'
+import { ClaimantAccount, ClaimantMerkleWitness } from './ClaimantAccount.js';
   
   export class Semaphore extends SmartContract {
-    @state(Bool) claimed = State<Bool>();
-
     // the merkle root for the valid set of claimants
     @state(Field) claimantsRoot = State<Field>(); 
 
@@ -26,8 +23,8 @@ import { checkCredentials } from './Stub.js'
         editState: Permissions.proofOrSignature(),
       });
 
-      this.claimed.set(Bool(false));
       this.claimantsRoot.set(Field(0));
+      this.claimant.set(Field(0));
     }
 
     @method setClaimantsRoot(claimantsRoot: Field) {
@@ -35,18 +32,34 @@ import { checkCredentials } from './Stub.js'
         this.requireSignature();
         this.claimantsRoot.set(claimantsRoot);
     }
-  
-    @method claim() {
-      // race condition assertion dance
-      const currentClaimed = this.claimed.get();
-      this.claimed.assertEquals(currentClaimed);
+
+    @method claim(claimantPath: ClaimantMerkleWitness) {
+      const currentClaimant = this.claimant.getAndAssertEquals();
+      const currentClaimantsRoot = this.claimantsRoot.getAndAssertEquals();
+
+      // can only act on behalf of yourself
+      const account = new ClaimantAccount({publicKey: this.sender});
 
       // must be unclaimed
-      currentClaimed.assertFalse();
+      currentClaimant.assertEquals(Field(0));
 
-      // must have necessary credentials (TODO: currently stubbed)
-      Bool(checkCredentials()).assertTrue();
+      // must be allowed to claim
+      claimantPath.calculateRoot(account.hash()).assertEquals(currentClaimantsRoot)
 
-      this.claimed.set(Bool(true));
+      // okay let's do it
+      this.claimant.set(account.hash());
+    }
+  
+    @method release() {
+      const currentClaimant = this.claimant.getAndAssertEquals();
+
+      // can only act on behalf of yourself
+      const account = new ClaimantAccount({publicKey: this.sender});
+
+      // must be the claimant to release
+      currentClaimant.assertEquals(account.hash())
+
+      // okay let's do it
+      this.claimant.set(Field(0));
     }
   }
